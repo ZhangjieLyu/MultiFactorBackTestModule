@@ -2,7 +2,7 @@
 """
 Created on Thu May 14 2020
 
-@author: 91592
+@author: Robert
 """
 from NameObj import NameObj
 DATA_FREQUENCY = 1
