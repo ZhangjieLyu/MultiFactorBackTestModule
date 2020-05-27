@@ -87,7 +87,7 @@ pos <--假设观察者在pos-th且有pos-th的信息， 那么这时候在定义
 from TimeSeriesTrailingGenerator import TrailingTimeSeries
 class cumulativeSum(TrailingTimeSeries):
     def __init__(self, df, startPos, endPos, trailingSize):
-        #更推荐使用 super()__init__(df, startPos, endPos, trailingSize) 来取代下面4行
+        #更推荐使用 super().__init__(df, startPos, endPos, trailingSize) 来取代下面4行
         self.startPos = startPos
         self.endPos = endPos
         self.rawData = df
