@@ -98,8 +98,8 @@ class cumulativeSum(TrailingTimeSeries):
             
         index 				   | col1  | col2  | ...|
         pos-(trailingSize)     | value1| value2|
-        pos-2   			   | value3| value5|
-        pos-1   			   | value4| value6|
+        pos-1   			   | value3| value5|
+        pos   			   | value4| value6|
         """
         #return np.sum(trailingSlice.values[:-1,:],axis = 0) #没有使用pos-th的信息
     	return np.sum(trailingSlice.values[:,:],axis = 0) #使用了pos-th的信息
