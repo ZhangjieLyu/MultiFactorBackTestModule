@@ -23,15 +23,15 @@ class TrailingGenerator(ABC):
     computed on a trailing basis.
     """
     @abstractmethod
-    def set_rangeOfData(self, startPos, endPos):
+    def set_range_of_data(self, startPos, endPos):
         pass
     
     @abstractmethod
-    def get_trailingSlice(self, pos, trailingSize):
+    def get_trailing_slice(self, pos, trailingSize):
         pass
     
     @abstractmethod
-    def isValid_trailingSlice(self, pos, trailingSize):
+    def is_valid_trailing_slice(self, pos, trailingSize):
         pass
     
     @abstractmethod
@@ -48,5 +48,9 @@ class TrailingGenerator(ABC):
         trailing cross-section vs. time-series may take in different
         trailingSize.
         """
+        pass
+    
+    @abstractmethod
+    def run_trailing_and_get_result(self):
         pass
     

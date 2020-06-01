@@ -59,7 +59,7 @@ class Under_Threshold_CumulativeTradableRule(TrailingTimeSeries):
         super().__init__(df, startPos, endPos, trailingSize)
         self.cumulationThreshold = cumulationThreshold
     
-    def compute_trailingSlice(self, trailingSlice):
+    def compute_trailing_slice(self, trailingSlice):
         """
         imaging have the following dataframe:
             
@@ -82,7 +82,7 @@ class Over_Threshold_CumulativeTradableRule(TrailingTimeSeries):
         super().__init__(df, startPos, endPos, trailingSize)
         self.cumulationThreshold = cumulationThreshold
     
-    def compute_trailingSlice(self, trailingSlice):
+    def compute_trailing_slice(self, trailingSlice):
         """
         imaging have the following dataframe:
             
@@ -103,7 +103,7 @@ class Under_Threshold_CrossSectionalQuantile(TrailingCrossSection):
         super().__init__(df, startPos, endPos, trailingSize)
         self.quantileThreshold = quantileThreshold
         
-    def compute_trailingSlice(self, trailingSlice):
+    def compute_trailing_slice(self, trailingSlice):
         """
         imaging have the following dataframe:
             
@@ -124,7 +124,7 @@ class Over_Threshold_CrossSectionalQuantile(TrailingCrossSection):
         super().__init__(df, startPos, endPos, trailingSize)
         self.quantileThreshold = quantileThreshold
         
-    def compute_trailingSlice(self, trailingSlice):
+    def compute_trailing_slice(self, trailingSlice):
         """
         imaging have the following dataframe:
             
