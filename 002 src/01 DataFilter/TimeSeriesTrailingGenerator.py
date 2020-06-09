@@ -5,6 +5,7 @@ Created on Wed May 27 2020
 @author: Robert
 """
 from TrailingGenerator import TrailingGenerator
+from collections import OrderedDict
 import pandas as pd
 import numpy as np
 
@@ -90,13 +91,97 @@ class TrailingTimeSeries(TrailingGenerator):
         self.run_trailing()
         return self.get_trailing_result()
     
-    def run_trailing_and_get_result(self):
-        self.run_trailing()
-        return self.get_trailing_result()
-    
     def description(self):
         print("startPos(included): {}".format(str(self.startPos)))
         print("endPos(included): {}".format(str(self.endPos)))
         print("trailingSize: {}".format(str(self.trailingSize)))
-                
+        
+class TrailingMultipleTimeSeries(TrailingTimeSeries):
+    """
+    Enhancement of TrailingTimeSeries, allowing calculation among more than one
+    data frame. Same mechanism as TrailingTimeSeries, but offer multiple table
+    at the same time
+    Data structure to visit multiple data frame: ordered dictionary
+    
+    Note:
+        1. input must be either ordered dict or 3-d matrix - e.g. days x stocks x features
+        2. the major usage of TrailingMultipleTimeSeries is different from TrailingTimeSeries,
+        so the default value for null is nan 
+    """
+    def __init__(self, df_dict, startPos, endPos, trailingSize):
+        self.startPos = startPos
+        self.endPos = endPos
+        self.trailingSize = trailingSize
+        self.data = OrderedDict()
+        self.rawData = OrderedDict()
+        
+        # check if input is a ordered dict
+        if isinstance(df_dict, OrderedDict):
+            for dfName in df_dict:
+                if isinstance(df_dict[dfName], pd.DataFrame):
+                    self.rawData[dfName] = df_dict[dfName]
+                else:
+                    self.rawData[dfName] = pd.DataFrame(data = df_dict[dfName])
+        else:
+            self.rawData = OrderedDict()
+            for aDim in range(df_dict.shape[2]):
+                self.rawData['df_'+str(aDim)] = \
+                    pd.DataFrame(data = df_dict[:,:,aDim])
+    
+    def set_range_of_data(self):
+        for dfName in self.rawData.keys():
+            self.data[dfName] = \
+                self.rawData[dfName].loc[self.startPos: self.endPos]
+        self.trailingResult = np.nan*np.ones(self.data[dfName].shape)
+    
+    def get_trailing_slice(self, pos, trailingSize):
+        trailingSlice = OrderedDict()
+        if self.is_valid_trailing_slice(pos, trailingSize):
+            for dfName in self.rawData.keys():
+                trailingSlice[dfName] = \
+                    self.rawData[dfName].loc[pos-trailingSize:pos]
+            return trailingSlice
+        else:
+            return []
+    
+    def run_trailingTS_slice(self, pos, trailingSize):
+        trailingSlice = self.get_trailing_slice(pos, trailingSize)
+        if len(trailingSlice)>0:
+            return self.compute_trailing_slice(trailingSlice)
+        else:
+            return np.nan
+        
+    def run_trailingCS_slice(self, pos, trailingSize):
+        raise NotImplementedError("Cannot use trailing cross-sectional computation\
+                                  in a time-series-trailing-type class.")
+
+    def run_trailing(self):
+        self.set_range_of_data()
+        offset = list(self.data[list(self.data.keys())[0]].index)[0]
+        for pos in self.data[list(self.data.keys())[0]].index:
+            self.trailingResult[pos-offset,:] = \
+                self.run_trailingTS_slice(pos, self.trailingSize)
+    
+    
+class TrailingMultipleTimeSeriesCustomized(TrailingMultipleTimeSeries):
+    """
+    allow using a more free way to define compute_trailing_slice() method, 
+    though the CUSTOMIZED computation methods still need a key word, 'compute',
+    now, method name e.g. compute_XXXX can be used in calculation
+    """
+    def __init__(self, df_dict, startPos, endPos, trailingSize):
+        super().__init__(df_dict, startPos, endPos, trailingSize)
+
+    def set_computation_method(self, funcName, dataset, parameter):
+        self.funcName = funcName
+        self.dataset = dataset # data set actually is field names
+        self.parameter = parameter
+    
+    def run_trailingTS_slice(self, pos, trailingSize):
+        trailingSlice = self.get_trailing_slice(pos, trailingSize)
+        if len(trailingSlice)>0:
+            return getattr(self, self.funcName)(trailingSlice, self.dataset, self. parameter)
+        else:
+            return np.nan
+        
 
