@@ -6,5 +6,5 @@ save_non_project_files = False
 
 [main]
 version = 0.2.0
-recent_files = ['..\\01 Data Filter\\utils.py', 'FactorGenerator.py', 'MatlabFactorGenerator.py', 'FactorProfileBase.py', 'FactorProfile.py']
+recent_files = ['FactorGenerator.py', 'MatlabFactorGenerator.py', 'FactorProfileBase.py', 'FactorProfile.py', 'untitled1.py']
 
