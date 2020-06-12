@@ -19,7 +19,7 @@ class FactorProfile(FactorProfileBase):
     def get_factor_args(self):
         out = dict()
         out.update(self.dataset)
-        out.update(parameters)
+        out.update(self.parameters)
         return(out)
         
 #%%    
