@@ -21,7 +21,7 @@ class FactorProfileBase:
         
     def get_factor_kwargs(self):
         out = dict()
-        out.update(self.dataset)
+        out.update(self.datasetName)
         out.update(self.parameters)
         return(out)
         
