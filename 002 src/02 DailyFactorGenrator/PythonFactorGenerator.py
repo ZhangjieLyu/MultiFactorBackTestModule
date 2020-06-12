@@ -4,239 +4,359 @@ Created on Mon Jun  1 21:36:56 2020
 
 @author: Robert
 """
-import numpy as np
-import pandas as pd
-from FactorGenerator import FactorGenerator
-from collections import OrderedDict
-import types
-
 import sys
-sys.path.insert(1, '..\\01 DataFilter\\') # TODO: modify this
-try:
-    from TimeSeriesTrailingGenerator import TrailingMultipleTimeSeriesCustomized
-except ImportError:
-    raise ImportError('cannot import TrailingTimeSeries, plz \
-                      add position to search directory, see line 13')
-
-try:
-    import alphalens as al
-except ImportError:
-    Warning("not install alphalens, graphic related feature not appliable!")
+from FactorGenerator import FactorGenerator
+from FactorProfile import FactorProfile
+from collections import OrderedDict
+import os
     
     
-class PythonFactorGenerator(FactorGenerator, TrailingMultipleTimeSeriesCustomized):
+class PythonFactorGenerator(FactorGenerator):
     """
-    Use a method "compute_XXXX(self)" (XXXX is the factorName) to store a 
-    specific calculation method of XXXX.
+    This class is only responsible for calculating factor, only calculating!
     
-    Don't need to specify "compute_XXXX" inside PythonFactorGenerator.
+    The way of calculating a factor and the function used to calculate a factor
+    is not defined in this class!!
     
-    Behavior when having duplicated factorName:
-        1. if call calculate_a_factor(factorName), preserve the first one
-        2. if call cal
+    Parameters
+    ----------
+    generatorType_str: str, 'matlab' or 'python', temporarily just an indicator.
+    
+    generateRequirement_dict: dict(), a dict of factor set-ups, organized like
+    {factorName(str):{"functionName":str,
+                      "parameters":dict(),
+                      "datasetNames":list[str]}}.
+    
+    startPos: int, start posistion
+    
+    endPos: int, end position
+    
+    currPos: int, current posistion, not compatible with usage of (startPos, endPos) pair.
+    
+    
+    Abnormal behavior notes
+    -----------------------
+        1. when having duplicated function names in different modules:
+            will execute the function that first encountered
+        2. when unique function name is found but executing generation fails:
+            will get none return
+        3. only specify factor_expression_notes but didn't give module names or
+        give incorrect module names:
+            cannot point to correct function, and will result in failure of 
+            loading modules
     """
     def __init__(self,
                  generatorType_str, 
                  generateRequirement_dict, 
-                 startPos=0, 
+                 startPos=None, 
                  endPos=None,
                  currPos = None):
-        super().__init__(generatorType_str, generateRequirement_dict)
         
-        # set length of data prior to startPos to reduce the nan in the begining of slicing
-        # self.__PRIOR_START_POS_LENGTH = 10
-        # self.__real_startPos_of_slice = 0
-        self.__FIX_TRAILING_SIZE = 20
-    
-        # init empty FILO queue
-        self.factorName_queue = [];
-        self.dataset_queue = [];
-        self.parameter_queue = [];
-        self.computationMethod_queue = [];
+        super().__init__(generatorType_str, generateRequirement_dict)
+        self.factorExpressionSearchPath = []
+        self.moduleNames = []
+        self.generatedFactorDict = OrderedDict()
         
         # MODE 1: if current position inited, only calculate the exact day.
-        # computation methods depend on methods whose signature is 
-        # compute_XXXX
         if isinstance(currPos, int):
-            self.generationMode = "incremental"
+            self.generationMode = 0 # use current position
             self.currPos = currPos
-            
             print("Factor generation mode: incremental mode.\n")
             return
         
         # MODE2: init startPos and endPos
         if startPos < endPos:
-            self.generationMode = "history"
+            self.generationMode = 1 # use start position - end posistion
             self.startPos = startPos
             self.endPos = endPos
             print("Factor generation mode: history mode.\n")
         else:
-            raise ValueError("USE valid value of (startPos, endPos) pair or \
-                             USE valid value of currPos! Valid value must be\
-                                 in range of index!")
-                                 
-                                
-    # def set_PRIOR_START_POS_LENGTH(self, newPriorLength):
-    #     """
-    #     To reduce nan in the beginnig of trailing slicing calculation
-    #     and to avoid nan in calculation using current position, one must assign
-    #     a pre-defined length of data set prior to start position of slice or 
-    #     current position, however, nan is still inevitable when there is no 
-    #     enough length of data prior to the start position.
-    #     """
-    #     self.__PRIOR_START_POS_LENGTH = newPriorLength
-    #     self.cal_real_startPos_of_slice()
-    #     print('re-calulate real start position successfully.')
-        
-    def set_TRAILING_SIZE(self, trailingSize):
-        self.__FIX_TRAILING_SIZE = trailingSize
-        print('set trailing size to be {}.'.format(str(trailingSize)))
-    
-    # def cal_real_startPos_of_slice(self):
-    #     """
-    #     a method that will adjust real start slicing length in both 'currPos'
-    #     and '(startPos, endPos)' modes.
-        
-    #     Note:
-    #         1. this method is covered in "set_PRIOR_START_POS_LENGTH"
-    #     """
-    #     # get all attributes
-    #     allAttributes = \
-    #         [i for i in self.__dict__.keys() if i[:1] != '_']
-    #     # if initialization with startPos and endPos
-    #     if 'currPos' in allAttributes:
-    #         if self.currPos - self.__PRIOR_START_POS_LENGTH < 0:
-    #             self.__real_startPos_of_slice = 0
-    #         else:
-    #             self.__real_startPos_of_slice =\
-    #                 self.currPos - self.__PRIOR_START_POS_LENGTH 
-    #     else:
-    #         if self.startPos - self.__PRIOR_START_POS_LENGTH < 0:
-    #             self.__real_startPos_of_slice = 0
-    #         else:
-    #             self.__real_startPos_of_slice =\
-    #                 self.startPos - self.__PRIOR_START_POS_LENGTH 
-        
-        
-    def get_factor_input(self, factorName):
+            raise ValueError("use valid value of (startPos, endPos) pair or \
+                             use valid value of currPos!")
+              
+                
+    def set_factor_expression_search_path(self, filePath, moduleNames_list):
         """
-        register factor's required data field and parameters
-        a dict(generateRequirement_dict) which originally records all information of factors
-        is like:            
-            requirement_dict -- factorName_1 == factorName(factor name again)
-                            |                ||== dataset(field names)
-                            |                ||== parameter(a dict)
-                            |-- factorName_2
-        """
-        return self.generateRequirement.get(factorName, 'Not Found.')
+        set folder to which filex of factor expressions are stored
 
-        
-    def register_a_factor_input(self, factorName):
+        Parameters
+        ----------
+        filePath : str
+            a file path pointed to a folder, the file structure is:
+                filePath - module1
+                         - module2
+                         ...
+                         - moduleN
+
+        Returns
+        -------
+        None
+
         """
-        When calling register_a_factor_input(self, factorName), you actually push
-        the dataset&parameter into a FILO queue, like following:
-            dataset_queue      | parameter_queue    | computationMethod_queue
-            [dataset_factorN]   [parameter_factorN]  [compute_factorN]
-            ...                  ...                   ...
-            [dataset_factor1]   [parameter_factor1]  [compute_factor1]
+        if os.path.exists(filePath):
+            self.factorExpressionSearchPath = filePath
+            self.moduleNames = moduleNames_list
+            print('set factor expression path: {}'.format(self.factorExpressionSearchPath))
+        else:
+            raise FileExistsError('Cannot found {}'.format(filePath))
+                       
             
+    def get_factor_profile(self, factorName):
+        """
+        wrap dict into FactorProfile structure
+        
+        Parameters
+        ----------
+        factorName: str
+        """
+        factorSetUps = self.generateRequirement.get(factorName, 'Not Found.')
+        if factorSetUps == 'Not Found.':
+            print(factorSetUps)
+            return
+        else:
+            factorProfile = FactorProfile(factorSetUps.get('functionName'),
+                                          factorSetUps.get('datasetNames'),
+                                          factorSetUps.get('parameters'),
+                                          None)
+            return(factorProfile)
+
+
+    def cal_factor(self, factorProfile, verbose = 1):
+        """
+        will call functionName defined in factorProfile, and run the function.
+        self.generationMode will be pass back to specified factor expression(i.e.
+        factorProfile.functionName) to determine if using (start~end) or current
+        position
+
+        Parameters
+        ----------
+        factorProfile : FactorProfile.FactorProfile
+            the attribute 'dataset' can be empty
+        verbose: boolean
+
+        Returns
+        -------
+        boolean
+
+        """
+        if len(self.factorExpressionSearchPath) > 0:
+            sys.path.insert(1, self.factorExpressionSearchPath)
+            moduleLoaded = []
+            successFlag = 0
+            
+            # import factor expression from given module
+            for aModule in self.moduleNames:
+                try:
+                    importStr = "from {} import *".format(aModule)
+                    exec(importStr)
+                    moduleLoaded.append(importStr)
+                except:
+                    print('fail to import module {}'.fomrat(aModule))
+                    continue
+            
+            # call functionName in factorPorfile
+            for aModule in moduleLoaded:
+                try:
+                    # search module by module, if found, break loop
+                    generatedFactor = getattr(globals()[aModule], factorProfile.functionName)(factorProfile.datasetNames,
+                                                                                              factorProfile.parameters,
+                                                                                              self.generationMode)
+                    self.generatedFactorDict[factorProfile.factorName] = generatedFactor
+                    successFlag = 1
+                    break
+                except:
+                    continue
+            
+            if verbose == 1:
+                # if verbose = True, print detailed information
+                if successFlag == 1:
+                    print('{} generated successfully via {}.{}'.format(factorProfile.factorName,
+                                                                       aModule,
+                                                                       factorProfile.functionName))
+                else:
+                    print('fail to generated {}'.format(factorProfile.factorName))
+                    
+            return(successFlag)
+        
+        else:
+            raise AttributeError('must set_factor_expression_search_path first')
+
+
+    def get_factor(self, factorName, verbose = 1):
+        '''
+        call the self.get_factor_profile and self.cal_factor to return a nice 
+        tuple with the calculated factor data with its profile
+        make adjustment if needed (determine the startdate, endDate , currentFlag ect.)
+
+        Parameters
+        ----------
+        factorName : str
+            determine the factor name to construct profile
+        verbose: boolean
+            The default is 1
+
+        Returns
+        -------
+        return((self.cal_factor(factorProfile), factorProfile))
+
+        '''       
+        factorProfile = self.get_factor_profile(factorName)
+        successFlag = self.cal_factor(factorProfile, verbose)
+        
+        if successFlag == 1:
+            return((self.generatedFactorDict[factorProfile.factorName], factorProfile))
+        else:
+            return((None, factorProfile))
+        
+        
+    def cal_all_factors(self, verbose = 1):
+        '''
+        wrapped method of cal_factor(factorProfile, verbose), if this method is called,
+        will calculate all factors declared in generateRequirement_dict.
+        Whenever call this method, will clear all previous calculation result
+
+        Parameters
+        ----------
+        verbose : boolean, optional
+            print details or not. The default is 1(print details).
+
+        Returns
+        -------
+        logDict = {factorName: successFlag}.
+        
+        '''
+        # clear previous calculation results
+        self.generatedFactorDict = OrderedDict()
+        
+        # write logs
+        logDict = OrderedDict()
+        for aFactorName in self.generateRequirement_dict.keys():
+            aFactorProfile = self.get_factor_profile(aFactorName)
+            aSuccessFlag = self.cal_factor(aFactorProfile, verbose)
+            logDict.update({aFactorName:aSuccessFlag})
+        return(logDict)
+    
+    
+    def get_all_factors(self, verbose = 1):
+        """
+        wrapped methods of get_factor(factorName, verbose), if this method is called,
+        will calculated all factors declared in generateRequirement_dicts and return
+        a nice tuple of (generatedFactorDict, logDict)
+        Whenever call this method, will clear all previous calculation result
+
+        Parameters
+        ----------
+        verbose : boolean, optional
+            print details or not. The default is 1.
+
+        Returns
+        -------
+        Tuple (generatedFactorDict, logDict)
+
+        """
+        logDict = self.cal_all_factors(verbose)
+        return((self.generatedFactorDict, logDict))
+    
+    
+    def get_factor_current(self, factorName, currPos, verbose = 1):
+        """
+        This method allows to redefine generate type regardless of what was inited.
+        
+        Parameters
+        ----------
+        factorName : str
+            factor name registed
+        currPos : int
+            
+        verbose: boolean
+            The default is 1.(print in details)
+
+        Returns
+        -------
+        Tuple (generatedFactorDict, factorProfile)
+
+        """
+        self.generationMode = 0 # means use current posistion
+        self.currPos = currPos # set current position
+        self.get_factor(factorName, verbose)
+        
+        
+    def get_all_factors_current(self, currPos, verbose = 1):
+        """
+        This method allows to redefine generate type regardless of what was inited.
+        WARNING: once this method is called, all previous calculation results will
+        be cleared!
+
+        Parameters
+        ----------
+        currPos : int
+            
+        verbose : bool, optional
+            The default is 1.
+
+        Returns
+        -------
+        Tuple (generatedFactorDict, logDict)
+
+        """
+        self.generationMode = 0 #means use current position
+        self.currPos = currPos # set current position
+        self.get_all_factors(verbose)
+        
+    def get_factor_history(self, factorName, startPos, endPos, verbose = 1):
+        """
+        This method allows to redefine generate type regardless of what was inited.
+
+        Parameters
+        ----------
+        factorName : str
+            DESCRIPTION.
+        startPos : int
+            DESCRIPTION.
+        endPos : int
+            DESCRIPTION.
+        verbose : bool, optional
+            DESCRIPTION. The default is 1.
+
+        Returns
+        -------
+        Tuple (generatedFactorDict, factorProfile)
+
+        """
+        self.generationMode = 1 # means use history mode
+        self.startPos = startPos
+        self.endPos = endPos
+        self.get_factor(factorName, verbose)
+        
+        
+    def get_all_factors_history(self, startPos, endPos, verbose = 1):
+        """
+        This method allows to redefine generate type regardless of what was inited.
+        WARNING: once this method is called, all previous calculation results will
+        be cleared!
+
+        Parameters
+        ----------
+        startPos : int
+            DESCRIPTION.
+        endPos : int
+            DESCRIPTION.
+        verbose : bool, optional
+            DESCRIPTION. The default is 1.
+
         Returns
         -------
         None.
-        
-        WARNING: don't use this method, cause error in logic
-        """
-        if self.get_factor_input(factorName) == 'Not Found.':
-            raise KeyError('{}: registration of dataset/parameter failed, \
-                           no such parameters declared!'.format(factorName))
-        else:
-            inputStructure = self.get_factor_input(factorName)
-            self.factorName_queue.append(inputStructure['factorName']) #FIXME: maybe need fix, depend on how the structure look like
-            self.dataset_queue.append(inputStructure['dataset'])
-            self.parameter_queue.append(inputStructure['parameter'])
 
+        """
+        self.generationMode = 1 # means use history mode
+        self.startPos = startPos
+        self.endPos = endPos
+        self.get_all_factors(verbose)
         
-    def produce_factor(self, factorName, methodName=None):
-        """
-        By calling produce_factor(self, factorName), you actually try to
-        register the compute_factorName(self, dataset, parameter) into a queue.
-    
-        Note: 
-            1. this method will not execute any computation!!
-            2. this method covers register_a_factor_input(self, factorName)!
-        """
-        flag = 0 # indicate whether method name pushed into queue successfully
-        self.register_a_factor_input(factorName)    
-        if methodName:
-            if methodName in dir(self):
-                self.computationMethod_queue.append(methodName)
-                flag = 1
-        else:
-            if 'compute_'+factorName in dir(self):
-                self.computationMethod_queue.append('compute_'+factorName)
-                flag = 1
-        if flag == 0:
-            raise AttributeError('No compute_{} method or {} method defined!'.format(factorName, methodName))
-    
-    def calculate_a_factor(self, factorName, df_dict = OrderedDict()): #FIXME: current still use df, substitue with singleton instance later
-        """
-        execute calculation
-        """
-        try:
-            idx = self.factorName_queue.index(factorName)
-        except:
-            raise ValueError('{} is not registered!'.format(factorName))
-        datasetIdx = self.dataset_queue[idx]
-        parameterIdx = self.parameter_queue[idx]
-        methodCallIdx = self.computationMethod_queue[idx]
         
-        if self.generationMode == 'incremental':
-            super(FactorGenerator,self).__init__(df_dict, self.currPos, self.currPos, self.__FIX_TRAILING_SIZE)
-        else:
-            super(FactorGenerator,self).__init__(df_dict, self.startPos, self.endPos, self.__FIX_TRAILING_SIZE)
-        self.set_computation_method(methodCallIdx, datasetIdx, parameterIdx)
-        return self.run_trailing_and_get_result()
-    
-    def calculate_all_factors(self):
-        """
-        perform calculation, return bool
-        """
-        pass
-    
-    def get_factor(self, factorName):
-        """
-        return the matrix of given factorName,
-        raise error if not found
-        """
-        pass
-    
-    def get_all_factors(self):
-        """
-        extension of get_factor,return OrderedDict(factorName: matrix)
-        """
-        pass
-    
-    def __clean_data_to_plot(self):
-        """
-        a method only for plotting
-        """
-        pass
-    
-    def plot_asset_return_vs_factor_loading(self, groupingNumber = 5):
-        pass
-    
-    @classmethod
-    def __addMethod(cls, func):
-        return setattr(cls, func.__name__, types.MethodType(func, cls))
-    
+    def get_all_factor_current(self):
+        raise NotImplementedError('deprecated, use get_all_factors_current instead!')
+        
     def get_all_factor_history(self):
-        raise NotImplementedError("cannot implement this method is PythonFactorGenerator")
-        
-    def get_factor_increment(self):
-        raise NotImplementedError("cannot implement this method is PythonFactorGenerator")
-        
-    def get_all_factor_increment(self):
-        raise NotImplementedError("cannot implement this method is PythonFactorGenerator")
-        
-    def get_factor_history(self):
-        raise NotImplementedError("cannot implement this method is PythonFactorGenerator")
+        raise NotImplementedError('deprecated, use get_all_factors_history instead!')
