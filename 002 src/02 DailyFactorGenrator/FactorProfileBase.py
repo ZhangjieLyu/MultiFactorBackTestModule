@@ -6,16 +6,16 @@ Created on Thu May 28 14:18:05 2020
 """
 from abc import ABC, abstractmethod
 class FactorProfileBase:
-    def __init__(self, functionName, datasetName_list, parameters_dict):
+    def __init__(self, functionName, datasetNames_list, parameters_dict):
         """
         Parameter
         ----------------------------
         functionName: str
-        datasetName_list: list[str]
+        datasetNames_list: list[str]
         parameters_dict: dict()
         """
         self.functionName = functionName
-        self.datasetName = datasetName_list
+        self.datasetNames = datasetNames_list
         self.dataset = None
         self.parameters = parameters_dict
         
@@ -33,7 +33,7 @@ class FactorProfileBase:
         verbose: boolean, if verbose is True, return factorName, parameters,dataset; otherwise, return return factorName, parameters
         """
         out = dict()
-        out.update({'datasetName':self.datasetName})
+        out.update({'datasetNames':self.datasetNames})
         out.update({'parameters':self.parameters})
         
         if verbose == 0:
