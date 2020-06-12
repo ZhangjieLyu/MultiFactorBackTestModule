@@ -16,11 +16,11 @@ class FactorProfile(FactorProfileBase):
         if self.dataset:
             return(self.dataset)
         
-    def get_factor_args(self):
-        out = dict()
-        out.update(self.dataset)
-        out.update(self.parameters)
-        return(out)
+#     def get_factor_args(self):
+#         out = dict()
+#         out.update(self.dataset)
+#         out.update(self.parameters)
+#         return(out)
         
 #%%    
 if __name__ == "__main__":
