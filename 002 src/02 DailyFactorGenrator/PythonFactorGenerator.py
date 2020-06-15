@@ -189,19 +189,21 @@ class PythonFactorGenerator(FactorGenerator):
                 try:
                     # search module by module, if found, break loop
                     if self.generationMode == 1:
+                        # get instance of aModule.functionName
                         generatedFactor = getattr(__import__(aModule), factorProfile.functionName)(dataset,
                                                                                                    factorProfile.functionName,
                                                                                                    factorProfile.parameters,
                                                                                                    startPos = self.startPos,
                                                                                                    endPos = self.endPos)
+                        # call method aModule.functionName.functionName()
                         self.generatedFactorDict[factorProfile.factorName] = getattr(generatedFactor, factorProfile.functionName)()
                         successFlag = 1
                         break
                     elif self.generationMode == 0:
-                        generatedFactor = getattr(eval(factorProfile.functionName), factorProfile.functionName)(dataset,
-                                                                                                                factorProfile.functionName,
-                                                                                                                factorProfile.parameters,
-                                                                                                                currPos = self.currPos)
+                        generatedFactor = getattr(__import__(aModule), factorProfile.functionName)(dataset,
+                                                                                                   factorProfile.functionName,
+                                                                                                   factorProfile.parameters,
+                                                                                                   currPos = self.currPos)
                         self.generatedFactorDict[factorProfile.factorName] = getattr(generatedFactor, factorProfile.functionName)()
                         successFlag = 1
                         break
