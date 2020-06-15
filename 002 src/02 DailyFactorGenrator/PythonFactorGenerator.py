@@ -198,9 +198,9 @@ class PythonFactorGenerator(FactorGenerator):
                         successFlag = 1
                         break
                     elif self.generationMode == 0:
-                        generatedFactor = getattr(eval(factorProfile.functionName), factorProfile.functionName)(self, dataset = dataset,
-                                                                                                                functionName = factorProfile.functionName,
-                                                                                                                parameters = factorProfile.parameters,
+                        generatedFactor = getattr(eval(factorProfile.functionName), factorProfile.functionName)(dataset,
+                                                                                                                factorProfile.functionName,
+                                                                                                                factorProfile.parameters,
                                                                                                                 currPos = self.currPos)
                         self.generatedFactorDict[factorProfile.factorName] = getattr(generatedFactor, factorProfile.functionName)()
                         successFlag = 1
