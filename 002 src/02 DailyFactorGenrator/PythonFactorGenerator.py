@@ -40,15 +40,13 @@ class PythonFactorGenerator(FactorGenerator):
     currPos: int, current posistion, not compatible with usage of (startPos, endPos) pair.
     
     
-    Abnormal behavior notes
-    -----------------------
+    Notes:
+    ------
         1. when having duplicated function names in different modules:
             will execute the function that first encountered
-        2. when unique function name is found but executing generation fails:
-            will get none return
-        3. only specify factor_expression_notes but didn't give module names or
+        2. only specify factor_expression_search_path but didn't give module names or
         give incorrect module names:
-            cannot point to correct function, and will result in failure of 
+            cannot point to correct function, may result in failure of 
             loading modules
     """
     def __init__(self,
