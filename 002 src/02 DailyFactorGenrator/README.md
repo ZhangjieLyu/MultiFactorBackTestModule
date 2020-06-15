@@ -53,6 +53,7 @@ testGenerator = PythonFactorGenerator(generationType_str, factorRequirement_dict
 ```
 
 3. get factor from your folder
+注意，在自己定义的 module.class中，最终计算函数需要和class name相同，都是factorProfile.functionName，这样的设计设计是为了使得可以定义的计算function更加复杂，可以接入各类机器学习学习方法，只要最后使用带有module.functionName.functionName() signature的method返回计算结果就可以了。
 
 ```Python
 testGenerator.set_factor_expression_search_path("..\\03 FactorFunctions\\python",
