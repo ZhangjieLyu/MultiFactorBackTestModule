@@ -172,16 +172,56 @@ class TrailingMultipleTimeSeriesCustomized(TrailingMultipleTimeSeries):
     def __init__(self, df_dict, startPos, endPos, trailingSize):
         super().__init__(df_dict, startPos, endPos, trailingSize)
 
-    def set_computation_method(self, funcName, dataset, parameter):
-        self.funcName = funcName
-        self.dataset = dataset # data set actually is field names
-        self.parameter = parameter
+    def set_computation_method(self, functionName, datasetNames, parameters):
+        self.functionName = functionName
+        self.datasetNames = datasetNames 
+        self.parameters = parameters
     
     def run_trailingTS_slice(self, pos, trailingSize):
         trailingSlice = self.get_trailing_slice(pos, trailingSize)
         if len(trailingSlice)>0:
-            return getattr(self, self.funcName)(trailingSlice, self.dataset, self. parameter)
+            return getattr(self, self.functionName)(trailingSlice, 
+                                                    self.datasetNames, 
+                                                    self.parameters)
         else:
+            Warning('trailingSlice is empty, return nan')
             return np.nan
         
 
+class FactorTemplate(TrailingMultipleTimeSeries):
+    """
+    a class speciailzed to API of cal_factor in PythonFactorGenerator class
+    """
+    def __init__(self, 
+                 dataset = None, 
+                 datasetNames = None,
+                 functionName = None, 
+                 parameters = None,
+                 startPos = None, 
+                 endPos = None, 
+                 currPos = None):
+        self.parameters = parameters
+        self.functionName = functionName
+        self.datasetNames = datasetNames
+        if isinstance(startPos, int) and isinstance(endPos, int):
+            super().__init__(dataset, startPos, endPos, 1)
+        elif isinstance(currPos, int):
+            super().__init__(dataset, currPos, currPos, 1)
+        else:
+            pass
+    
+    def set_trailing_size(self, newTrailingSize):
+        self.trailingSize = newTrailingSize    
+    
+    def comput_trailing_slice(trailingSlice, datasetNames, parameters):
+        pass
+        
+    def run_trailingTS_slice(self, pos, trailingSize):
+        trailingSlice = self.get_trailing_slice(pos, trailingSize)
+        if len(trailingSlice)>0:
+            return self.compute_trailing_slice(trailingSlice, 
+                                                self.datasetNames, 
+                                                self.parameters)
+        else:
+            Warning('trailingSlice is empty, return nan')
+            return np.nan

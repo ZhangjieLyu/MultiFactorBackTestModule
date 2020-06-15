@@ -9,7 +9,13 @@ from FactorGenerator import FactorGenerator
 from FactorProfile import FactorProfile
 from collections import OrderedDict
 import os
-    
+
+YOUR_PATH = "..\\projectData\\projectData.mat"
+
+# FIXME: import module instead of .py file later
+# The following codes assuming the working directory is '02 DailyFactorGenerator'
+sys.path.insert(1,"..\\01 DataFilter")
+from utils import extract_data_from_matlabFile
     
 class PythonFactorGenerator(FactorGenerator):
     """
@@ -65,7 +71,7 @@ class PythonFactorGenerator(FactorGenerator):
             return
         
         # MODE2: init startPos and endPos
-        if startPos < endPos:
+        if isinstance(startPos, int) and isinstance(endPos, int) and (startPos < endPos):
             self.generationMode = 1 # use start position - end posistion
             self.startPos = startPos
             self.endPos = endPos
@@ -73,7 +79,22 @@ class PythonFactorGenerator(FactorGenerator):
         else:
             raise ValueError("use valid value of (startPos, endPos) pair or \
                              use valid value of currPos!")
-              
+    
+    # ========static variables, use to point to data loading method===========
+    @staticmethod
+    def get_data():
+        Warning("only a test method to test that the programme is executable!")    
+        testDataPath = YOUR_PATH
+        searchPath = ["projectData.stock.properties.close",
+                      "projectData.stock.properties.high"]   
+        sampleData = extract_data_from_matlabFile(testDataPath, 
+                                                  searchPath,
+                                                  True)
+        print('\n test data loaded successfully.')
+        return(sampleData)
+    
+    sampleData = get_data.__func__()  
+    #======= modify above static function in later development ================
                 
     def set_factor_expression_search_path(self, filePath, moduleNames_list):
         """
@@ -114,7 +135,8 @@ class PythonFactorGenerator(FactorGenerator):
             print(factorSetUps)
             return
         else:
-            factorProfile = FactorProfile(factorSetUps.get('functionName'),
+            factorProfile = FactorProfile(factorName,
+                                          factorSetUps.get('functionName'),
                                           factorSetUps.get('datasetNames'),
                                           factorSetUps.get('parameters'),
                                           None)
@@ -130,8 +152,9 @@ class PythonFactorGenerator(FactorGenerator):
 
         Parameters
         ----------
-        factorProfile : FactorProfile.FactorProfile
+        factorProfile: FactorProfile.FactorProfile
             the attribute 'dataset' can be empty
+            
         verbose: boolean
 
         Returns
@@ -144,26 +167,48 @@ class PythonFactorGenerator(FactorGenerator):
             moduleLoaded = []
             successFlag = 0
             
+            # load data set
+            # FIXME: modify the proccess of getting data set in the following lines
+            # in later development
+            dataset = OrderedDict({name: PythonFactorGenerator.sampleData[name] for 
+                                   name in factorProfile.datasetNames if
+                                   name in PythonFactorGenerator.sampleData})
+            if len(list(dataset.keys())) != len(factorProfile.datasetNames):
+                print("factor {} loaded data incomplete!".format(factorProfile.factorName))
+            
             # import factor expression from given module
             for aModule in self.moduleNames:
                 try:
                     importStr = "from {} import *".format(aModule)
                     exec(importStr)
-                    moduleLoaded.append(importStr)
+                    moduleLoaded.append(aModule)
                 except:
-                    print('fail to import module {}'.fomrat(aModule))
+                    print('fail to import module {}'.format(aModule))
                     continue
             
             # call functionName in factorPorfile
             for aModule in moduleLoaded:
                 try:
                     # search module by module, if found, break loop
-                    generatedFactor = getattr(globals()[aModule], factorProfile.functionName)(factorProfile.datasetNames,
-                                                                                              factorProfile.parameters,
-                                                                                              self.generationMode)
-                    self.generatedFactorDict[factorProfile.factorName] = generatedFactor
-                    successFlag = 1
-                    break
+                    if self.generationMode == 1:
+                        generatedFactor = getattr(__import__(aModule), factorProfile.functionName)(dataset,
+                                                                                                   factorProfile.functionName,
+                                                                                                   factorProfile.parameters,
+                                                                                                   startPos = self.startPos,
+                                                                                                   endPos = self.endPos)
+                        self.generatedFactorDict[factorProfile.factorName] = getattr(generatedFactor, factorProfile.functionName)()
+                        successFlag = 1
+                        break
+                    elif self.generationMode == 0:
+                        generatedFactor = getattr(eval(factorProfile.functionName), factorProfile.functionName)(self, dataset = dataset,
+                                                                                                                functionName = factorProfile.functionName,
+                                                                                                                parameters = factorProfile.parameters,
+                                                                                                                currPos = self.currPos)
+                        self.generatedFactorDict[factorProfile.factorName] = getattr(generatedFactor, factorProfile.functionName)()
+                        successFlag = 1
+                        break
+                    else:
+                        raise ValueError('self.generationMode can only be 0(use currPos) or 1(use startPos-endPos pair)')
                 except:
                     continue
             
@@ -230,7 +275,7 @@ class PythonFactorGenerator(FactorGenerator):
         
         # write logs
         logDict = OrderedDict()
-        for aFactorName in self.generateRequirement_dict.keys():
+        for aFactorName in self.generateRequirement.keys():
             aFactorProfile = self.get_factor_profile(aFactorName)
             aSuccessFlag = self.cal_factor(aFactorProfile, verbose)
             logDict.update({aFactorName:aSuccessFlag})
@@ -267,7 +312,6 @@ class PythonFactorGenerator(FactorGenerator):
         factorName : str
             factor name registed
         currPos : int
-            
         verbose: boolean
             The default is 1.(print in details)
 
@@ -290,7 +334,6 @@ class PythonFactorGenerator(FactorGenerator):
         Parameters
         ----------
         currPos : int
-            
         verbose : bool, optional
             The default is 1.
 
@@ -310,13 +353,9 @@ class PythonFactorGenerator(FactorGenerator):
         Parameters
         ----------
         factorName : str
-            DESCRIPTION.
         startPos : int
-            DESCRIPTION.
         endPos : int
-            DESCRIPTION.
-        verbose : bool, optional
-            DESCRIPTION. The default is 1.
+        verbose : bool, optional. The default is 1.
 
         Returns
         -------
@@ -338,11 +377,8 @@ class PythonFactorGenerator(FactorGenerator):
         Parameters
         ----------
         startPos : int
-            DESCRIPTION.
         endPos : int
-            DESCRIPTION.
-        verbose : bool, optional
-            DESCRIPTION. The default is 1.
+        verbose : bool, optional. The default is 1.
 
         Returns
         -------

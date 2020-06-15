@@ -3,13 +3,14 @@
 Created on Thu May 28 13:54:28 2020
 
 @author: Evan
+@reviewer: Robert
 """
 from abc import ABC, abstractmethod
 
 
 class FactorGenerator(ABC):
     def __init__(self, generatorType_str, generateRequirement_dict):
-        self.generatorType =generatorType
+        self.generatorType =generatorType_str
         self.generateRequirement = generateRequirement_dict
         
     @abstractmethod  
@@ -89,10 +90,10 @@ class FactorGenerator(ABC):
         return((self.cal_factor(factorProfile), factorProfile)).
 
         '''
-        return(self.get_factor(factorName, 1))
+        return(self.get_factor(factorName))
         
     def get_factor_history(self, factorName):
-         '''
+        '''
         get the history factor with its factor name
         for good user interface
         plz override the method if your get_factor method has different way to use  
@@ -107,7 +108,7 @@ class FactorGenerator(ABC):
         return((self.cal_factor(factorProfile), factorProfile)).
 
         '''
-        return(self.get_factor(factorName, 0))
+        return(self.get_factor(factorName))
     
     def get_all_factor_current(self):
         '''

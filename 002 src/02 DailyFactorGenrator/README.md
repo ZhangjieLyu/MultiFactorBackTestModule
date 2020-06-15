@@ -24,3 +24,49 @@ For anaconda env I used following steps ref to [this link](https://ww2.mathworks
 
 
 
+# How to use PythonFactorGenerator.py
+
+1. import 
+
+```Python
+from PythonFactorGenerator import PythonFactorGenerator
+```
+
+2. init
+
+```python
+factorRequirement_dict={'testFactor1':
+                        {'functionName': 'testSum',
+                         'datasetNames':['close','high'],
+                         'parameters':{"p":23}},
+                        'testFactor2':
+                        {'functionName': 'testMinus',
+                         'datasetNames':['close', 'high'],
+                         'parameters':{"p":3}}
+                        }
+generationType_str = 'Python'
+startPos = 3
+endPos = 5
+
+testGenerator = PythonFactorGenerator(generationType_str, factorRequirement_dict,
+                                      startPos = startPos, endPos = endPos)
+```
+
+3. get factor from your folder
+
+```Python
+testGenerator.set_factor_expression_search_path("..\\03 FactorFunctions\\python",
+                                                ['testFactors'])
+aResult = testGenerator.get_factor('testFactor1')
+groupOfResults = testGenerator.get_all_factors(verbose = 1)
+```
+
+results:
+
+```
+set factor expression path: C:\Users\91592\Dropbox\WorkingSpace\NaiveBackTestPy_ForLoop\02 src\03 FactorFunctions\python
+testFactor1 generated successfully via testFactors.testSum
+testFactor1 generated successfully via testFactors.testSum
+testFactor2 generated successfully via testFactors.testMinus
+```
+

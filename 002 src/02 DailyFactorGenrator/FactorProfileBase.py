@@ -3,17 +3,19 @@
 Created on Thu May 28 14:18:05 2020
 
 @author: Evan
+@reviewer: Robert
 """
 from abc import ABC, abstractmethod
 class FactorProfileBase:
-    def __init__(self, functionName, datasetNames_list, parameters_dict):
+    def __init__(self, factorName, functionName, datasetNames_list, parameters_dict):
         """
         Parameter
         ----------------------------
         functionName: str
-        datasetNames_list: list[str]
+        datasetName_list: list[str]
         parameters_dict: dict()
         """
+        self.factorName = factorName
         self.functionName = functionName
         self.datasetNames = datasetNames_list
         self.dataset = None
@@ -33,6 +35,8 @@ class FactorProfileBase:
         verbose: boolean, if verbose is True, return factorName, parameters,dataset; otherwise, return return factorName, parameters
         """
         out = dict()
+        out.update({'factorName':self.factorName})
+        out.update({'functionName':self.functionName})
         out.update({'datasetNames':self.datasetNames})
         out.update({'parameters':self.parameters})
         
