@@ -1,4 +1,4 @@
 # MultiFactorBackTestModule
-A for-loop based back testing module for multi-factor model, deriving from BARRA model
+目前有的内容：
 
-Applied to environment whose data frequency is structured
+多因子的单时间细粒度的因子测试模组（开发ing）
